@@ -2,7 +2,11 @@ import discord
 import logging
 import logging.handlers
 import os
+from sql_helper import SQLConnection
+from embed_helper import EmbedHelper
 
+connection = SQLConnection()
+embeds = EmbedHelper()
 server_id = 1268936879936508077
 
 logger = logging.getLogger('discord')
@@ -33,41 +37,50 @@ tree = discord.app_commands.CommandTree(client)
 async def on_ready():
     print(f'We have logged in as {client.user}')
 
-@client.event
-async def on_message(message):
-    if message.author == client.user:
-        return
-
-    if message.content.startswith('$hello'):
-        await message.channel.send('Hello!')
-
-# Add the guild ids in which the slash command will appear.
-# If it should be in all, remove the argument, but note that
-# it will take some time (up to an hour) to register the
-# command if it's for all guilds.
 @tree.command(
-    name="addplayer",
-    description="Add a player to your team",
+    name="team",
+    description="Get information about your current team",
     guild=discord.Object(id=server_id)
 )
-async def first_command(interaction, member: discord.Member):
-    embed = discord.Embed(
-        title="Player registered!",
-        description=member.display_name + " has been successfully added to your team.",
-        color=discord.Color.green()
-    )
+async def get_team_command(interaction):
+    user_id = interaction.user.id
+    team_id = connection.get_user_team_id(user_id)
+    team_members = connection.get_team_members(team_id)
+    team_name = connection.get_team_name(team_id)
 
-    players = ""
-    players += "HollaFoil (Epic: HollaFoil)\n"
-    players += member.display_name + " (Epic: botAccount)\n"
+    users = get_users(team_members, interaction.guild)
 
-    embed.add_field(name="Current players (2/3):", value=players, inline=False)
-    embed.set_footer(text="Rocket League dalykas zdz", icon_url="https://styles.redditmedia.com/t5_3l3fel/styles/communityIcon_pir9p3ppjnga1.png")
-    embed.set_thumbnail(url=member.display_avatar.url)
+    embed = embeds.get_team_id_embed(interaction, team_name, users)
     await interaction.response.send_message(embed=embed)
+
+@tree.command(
+    name="create",
+    description="Create a new team",
+    guild=discord.Object(id=server_id)
+)
+async def create_team_command(interaction, name: str):
+    user_id = interaction.user.id
+
+    embed = embeds.get_cannot_create_team_embed(interaction)
+    if connection.get_user_team_id(user_id) == None:
+        team_id = connection.create_team(name, user_id)
+        connection.add_player_to_team(user_id, team_id)
+        embed = embeds.get_team_create_embed(interaction, name)
+        connection.commit()
+
+    await interaction.response.send_message(embed=embed)
+    
+
 
 @client.event
 async def on_ready():
     await tree.sync(guild=discord.Object(id=server_id))
+
+def get_users(user_id_rows, guild):
+    if user_id_rows == None:
+        return []
+    users = [guild.get_member(member[0]) for member in user_id_rows]
+    return users
+    
 
 client.run(os.environ['DISCORD_API_KEY'])

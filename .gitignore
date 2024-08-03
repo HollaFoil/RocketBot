@@ -1,2 +1,4 @@
 rsa.key
 discord.log
+database.ini
+__pycache__/*
