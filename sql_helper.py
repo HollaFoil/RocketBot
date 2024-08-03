@@ -89,6 +89,16 @@ class SQLConnection:
             cursor.execute(statement, (team_id, ))
             result = cursor.fetchall()
         return result
+    
+    def get_player_invitations(self, user_id):
+        statement = """SELECT * FROM invitations 
+                       WHERE %s = invitations.user_id"""
+        
+        result = []
+        with self.connection.cursor() as cursor:
+            cursor.execute(statement, (user_id, ))
+            result = cursor.fetchall()
+        return result
 
     def create_team(self, team_name, owner_id):
         statement = """INSERT INTO teams(owner_id, name) 
@@ -156,15 +166,16 @@ class SQLConnection:
         with self.connection.cursor() as cursor:
             cursor.execute(statement, (user_id,))
 
-    def change_team_owner(self, team_id):
+    def change_team_owner(self, team_id, new_owner = None):
         if team_id == None:
             return
         
         statement = """UPDATE teams
-                       SET teams.owner_id = %s
-                       WHERE teams.team_id = %s;"""
+                       SET owner_id = %s
+                       WHERE team_id = %s;"""
         
-        new_owner = self.get_team_members(team_id)[0][0]
+        if new_owner is None:
+            new_owner = self.get_team_members(team_id)[0][0]
 
         with self.connection.cursor() as cursor:
             cursor.execute(statement, (new_owner, team_id))
@@ -183,11 +194,21 @@ class SQLConnection:
         if user_id == None:
             return
         
-        statement = """DELETE FROM user_in_team
-                       WHERE user_in_team.user_id = %s;"""
+        statement = """DELETE FROM invitations
+                       WHERE invitations.user_id = %s;"""
         
         with self.connection.cursor() as cursor:
             cursor.execute(statement, (user_id, ))
+
+    def delete_invite(self, user_id, team_id):
+        if user_id == None:
+            return
+        
+        statement = """DELETE FROM invitations
+                       WHERE invitations.user_id = %s AND invitations.team_id = %s;"""
+        
+        with self.connection.cursor() as cursor:
+            cursor.execute(statement, (user_id, team_id))
         
     
         

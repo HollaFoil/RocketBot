@@ -47,7 +47,31 @@ class EmbedHelper:
         return get_no_invitation_embed(interaction)
     
     def get_joined_team_embed(self, interaction, team_name):
-        return get_join_team_embed(self, interaction, team_name)
+        return get_join_team_embed(interaction, team_name)
+    
+    def get_reject_team_embed(self, interaction):
+        return get_reject_team_embed(interaction)
+    
+    def get_no_invitations_embed(self, interaction):
+        return get_no_invitations_embed(interaction)
+    
+    def get_invitations_embed(self, interaction, invitations):
+        return get_invitations_embed(interaction, invitations)
+    
+    def get_not_owner_embed(self, interaction):
+        return get_not_owner_embed(interaction)
+    
+    def get_user_kicked_embed(self, interaction, user):
+        return get_user_kicked_embed(interaction, user)
+    
+    def get_target_not_in_team(self, interaction):
+        return get_target_not_in_team(interaction)
+    
+    def get_make_captain_embed(self, interaction, user):
+        return get_make_captain_embed(interaction, user)
+    
+    def get_same_target_embed(self, interaction):
+        return get_same_target_embed(interaction)
     
 def get_team_embed_error(interaction):
     embed = discord.Embed(
@@ -75,9 +99,10 @@ def get_team_embed_full(interaction, team_name, users, invited_users, team_owner
 
     captain = team_owner.display_name + " (" + team_owner.name + ")\n"
 
-    embed.add_field(name="Captain:", value=players, inline=False)
+    embed.add_field(name="Captain:", value=captain, inline=False)
     embed.add_field(name="Members (" + str(len(users)) + "/3):", value=players, inline=False)
-    embed.add_field(name="Pending invites:", value=pending, inline=False)
+    if invited_users != None and len(invited_users) > 0:
+        embed.add_field(name="Pending invites:", value=pending, inline=False)
     embed.set_thumbnail(url=team_owner.display_avatar.url)
     embed.set_footer(**success_footer)
     return embed
@@ -175,7 +200,7 @@ def get_team_disbanded_embed(interaction):
 
 def get_no_invitation_embed(interaction):
     embed = discord.Embed(
-        title = "Failed to join team.",
+        title = "Cannot find pending invite.",
         description = "This user has not invited you to any team.",
         color = discord.Color.red()
     )
@@ -187,6 +212,90 @@ def get_join_team_embed(interaction, team_name):
     embed = discord.Embed(
         title = "Joined " + team_name,
         description = "You can view information about your team by typing `/team`",
+        color = discord.Color.green()
+    )
+    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    embed.set_footer(**success_footer)
+    return embed
+
+def get_reject_team_embed(interaction):
+    embed = discord.Embed(
+        title = "Invite rejected",
+        description = "You can view information about your invites by typing `/invites`",
+        color = discord.Color.green()
+    )
+    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    embed.set_footer(**success_footer)
+    return embed
+
+def get_no_invitations_embed(interaction):
+    embed = discord.Embed(
+        title = "You have no invitations",
+        description = "You currently have no pending invites. Other users can invite you by typing `/invite`.",
+        color = discord.Color.green()
+    )
+    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    embed.set_footer(**success_footer)
+    return embed
+
+def get_invitations_embed(interaction, invitations):
+    embed = discord.Embed(
+        title = "You have " + str(len(invitations)) + " invitations",
+        description = "You can join their team by typing `/accept @<user>`.",
+        color = discord.Color.green()
+    )
+
+    for invitation in invitations:
+        embed.add_field(name=invitation['team_name'], value="You were invited by " + invitation['user_name'])
+
+    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    embed.set_footer(**success_footer)
+    return embed
+
+def get_not_owner_embed(interaction):
+    embed = discord.Embed(
+        title = "Operation failed",
+        description = "You must be the team captain to do this.",
+        color = discord.Color.red()
+    )
+    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    embed.set_footer(**error_footer)
+    return embed
+
+def get_target_not_in_team(interaction):
+    embed = discord.Embed(
+        title = "Operation failed",
+        description = "This player is not in your team.",
+        color = discord.Color.red()
+    )
+    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    embed.set_footer(**error_footer)
+    return embed
+
+def get_same_target_embed(interaction):
+    embed = discord.Embed(
+        title = "Operation failed",
+        description = "You cannot select yourself for this operation",
+        color = discord.Color.red()
+    )
+    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    embed.set_footer(**error_footer)
+    return embed
+
+def get_user_kicked_embed(interaction, user):
+    embed = discord.Embed(
+        title = user.display_name + " was kicked from your team",
+        description = "You can view your team by typing `/team`.",
+        color = discord.Color.green()
+    )
+    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    embed.set_footer(**success_footer)
+    return embed
+
+def get_make_captain_embed(interaction, user):
+    embed = discord.Embed(
+        title = user.display_name + " is now captain",
+        description = "You can view your team by typing `/team`.",
         color = discord.Color.green()
     )
     embed.set_thumbnail(url=interaction.user.display_avatar.url)

@@ -88,7 +88,10 @@ async def invite_player_command(interaction, user: discord.Member):
     team_id = connection.get_user_team_id(user_id)
 
     embed = None
-    if not connection.check_player_has_team(user_id):
+    
+    if user_id == user.id:
+        embed = embeds.get_same_target_embed(interaction)
+    elif not connection.check_player_has_team(user_id):
         embed = embeds.get_no_team_embed(interaction)
     elif connection.get_total_team_size(team_id) >= max_team_size:
         embed=embeds.get_team_cannot_have_more_members_embed(interaction, user)
@@ -142,10 +145,105 @@ async def accept_invite_command(interaction, user: discord.Member):
     embed = None
     if not connection.check_player_invited(user_id, team_id):
         embed = embeds.get_no_invitation_embed(interaction)
+    elif user_id == user.id:
+        embed = embeds.get_same_target_embed(interaction)
     else:
         embed = embeds.get_joined_team_embed(interaction, team_name)
         connection.add_player_to_team(user_id, team_id)
         connection.delete_invites(user_id)
+
+    await interaction.response.send_message(embed=embed)
+    connection.commit()
+
+@tree.command(
+    name="invites",
+    description="List all invities you have received",
+    guild=discord.Object(id=server_id)
+)
+async def list_invites_command(interaction):
+    user_id = interaction.user.id
+    invites = connection.get_player_invitations(user_id)
+
+    embed = None
+    if len(invites) == 0:
+        embed = embeds.get_no_invitations_embed(interaction)
+    else:
+        invites = parse_invitations(invites, interaction.guild)
+        embed = embeds.get_invitations_embed(interaction, invites)
+
+    await interaction.response.send_message(embed=embed)
+    connection.commit()
+
+@tree.command(
+    name="reject",
+    description="Reject an invitation from a user",
+    guild=discord.Object(id=server_id)
+)
+async def reject_invite_command(interaction, user: discord.Member):
+    user_id = interaction.user.id
+    team_id = connection.get_user_team_id(user.id)
+    team_name = connection.get_team_name(team_id)
+
+    embed = None
+    if not connection.check_player_invited(user_id, team_id):
+        embed = embeds.get_no_invitation_embed(interaction)
+    elif user_id == user.id:
+        embed = embeds.get_same_target_embed(interaction)
+    else:
+        embed = embeds.get_reject_team_embed(interaction)
+        connection.delete_invite(user_id, team_id)
+
+    await interaction.response.send_message(embed=embed)
+    connection.commit()
+
+@tree.command(
+    name="remove",
+    description="Kick a player from your team",
+    guild=discord.Object(id=server_id)
+)
+async def remove_player_command(interaction, user: discord.Member):
+    user_id = interaction.user.id
+    team_id = connection.get_user_team_id(user_id)
+    owner_id = connection.get_team_owner(team_id)
+
+    embed = None
+    if not connection.check_player_has_team(user_id):
+        embed = embeds.get_no_team_embed(interaction)
+    elif user_id != owner_id:
+        embed = embeds.get_not_owner_embed(interaction)
+    elif user_id == user.id:
+        embed = embeds.get_same_target_embed(interaction)
+    elif not connection.check_player_in_team(user.id, team_id):
+        embed = embeds.get_target_not_in_team(interaction)
+    else:
+        embed = embeds.get_user_kicked_embed(interaction, user)
+        connection.delete_player_from_team(team_id, user.id)
+
+    await interaction.response.send_message(embed=embed)
+    connection.commit()
+
+@tree.command(
+    name="makecaptain",
+    description="Make another player captain",
+    guild=discord.Object(id=server_id)
+)
+async def make_captain_command(interaction, user: discord.Member):
+    user_id = interaction.user.id
+    team_id = connection.get_user_team_id(user_id)
+    owner_id = connection.get_team_owner(team_id)
+
+    embed = None
+    if not connection.check_player_has_team(user_id):
+        embed = embeds.get_no_team_embed(interaction)
+    elif user_id != owner_id:
+        embed = embeds.get_not_owner_embed(interaction)
+    elif user_id == user.id:
+        embed = embeds.get_same_target_embed(interaction)
+    elif not connection.check_player_in_team(user.id, team_id):
+        embed = embeds.get_target_not_in_team(interaction)
+    else:
+        embed = embeds.get_make_captain_embed(interaction, user)
+        connection.change_team_owner(team_id, user.id)
 
     await interaction.response.send_message(embed=embed)
     connection.commit()
@@ -159,6 +257,18 @@ def get_users(user_id_rows, guild):
         return []
     users = [guild.get_member(member[0]) for member in user_id_rows]
     return users
+
+def parse_invitations(invites, guild):
+    invites_parsed = []
+    for invite in invites:
+        team_id = invite[1]
+        invited_by = invite[2]
+        invite = {
+            'team_name':connection.get_team_name(team_id),
+            'user_name':guild.get_member(invited_by).display_name
+        }
+        invites_parsed.append(invite)
+    return invites_parsed
     
 
 client.run(os.environ['DISCORD_API_KEY'])
